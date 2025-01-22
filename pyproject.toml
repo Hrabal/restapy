@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "restapy"
+version = "0.1.0"
+description = ""
+authors = ["Hrabal <federicocerchiari@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12.2"
+sqlmodel = "^0.0.22"
+fastapi = "^0.115.6"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3.4"
+pytest-cov = "^6.0.0"
+radon = "^6.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[radon]
+exclude = "test_*.py"
+cc_min = "B"
