@@ -1,6 +1,6 @@
 from .db import DbInterface
-from .filters import Conditions, QueryPars
-from .models import AnnotationModel, BaseSQLModel
+from .filters import QueryPars
+from .models import DbModel
 from .responses import (
     DownloadResponse,
     PaginatedResponse,

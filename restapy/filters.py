@@ -17,7 +17,7 @@ from pydantic import BaseModel, EmailStr, Field, GetCoreSchemaHandler, create_mo
 from pydantic_core import CoreSchema, core_schema
 from sqlalchemy import and_, func, or_
 
-from .models import BaseSQLModel, SQLModelType
+from .models import DbModel
 from .utils import classproperty
 
 
@@ -52,7 +52,7 @@ class QueryModelBase(BaseModel):
         "populate_by_name": True,
     }
     base_fields: ClassVar[set[str]] = {"page", "per_page", "order_by", "project"}
-    model: ClassVar[SQLModelType] = None
+    model: ClassVar[type[DbModel]] = None
     search_mth: ClassVar[str] = None
 
     page: int = 0
@@ -65,7 +65,7 @@ class QueryModelBase(BaseModel):
         return self.page * self.per_page
 
     @classproperty
-    def query_pars(cls) -> Type[Annotated]:
+    def fapy_query(cls) -> Type[Annotated]:
         return Annotated[cls, HttpQueryPars()]
 
     @classmethod
@@ -189,7 +189,7 @@ class QueryPars:
         return out
 
     @staticmethod
-    def _order_by_annotation(model: BaseSQLModel) -> Type[Annotated]:
+    def _order_by_annotation(model: DbModel) -> Type[Annotated]:
         fields = model.model_fields.keys()
         order_by_fields = chain(fields, (f"{k}.desc" for k in fields))
         return list[Literal[tuple(sorted(order_by_fields))]]
@@ -213,7 +213,7 @@ class QueryPars:
         ) -> CoreSchema:
             return core_schema.no_info_after_validator_function(cls, handler(str))
 
-        def sql_cond(self, model: BaseSQLModel):
+        def sql_cond(self, model: DbModel):
             return and_(func.levenshtein(getattr(model, field.name), self))
 
         return type(
@@ -235,7 +235,7 @@ class QueryPars:
         ) -> CoreSchema:
             return core_schema.no_info_after_validator_function(cls, handler(str))
 
-        def sql_cond(self, model: BaseSQLModel):
+        def sql_cond(self, model: DbModel):
             return and_(
                 or_(
                     *(

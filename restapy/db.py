@@ -2,13 +2,13 @@ from functools import wraps
 from typing import Any, Callable, Iterator, Sequence
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, ColumnOperators, and_, delete, func
+from sqlalchemy import ColumnElement, ColumnOperators, and_, func
 from sqlalchemy.orm.query import Query
 from sqlmodel import Session, create_engine
 
 from .exceptions import NotFoundException
 from .filters import Conditions, QueryModelBase
-from .models import BaseSQLModel, SQLModelType
+from .models import DbModel
 
 
 class DbInterface:
@@ -24,8 +24,8 @@ class DbInterface:
         self.session = session
 
     def upsert(
-        self, model: SQLModelType, instance_id: int | str, data: dict | BaseModel
-    ) -> SQLModelType:
+        self, model: type[DbModel], instance_id: int | str, data: dict | BaseModel
+    ) -> DbModel:
         """Public api to update a model by primary key, returns the updated instance."""
         try:
             instance = self.get(model, instance_id)
@@ -36,20 +36,20 @@ class DbInterface:
         return instance
 
     def update(
-        self, model: SQLModelType, instance_id: int | str, data: dict | BaseModel
-    ) -> SQLModelType:
+        self, model: type[DbModel], instance_id: int | str, data: dict | BaseModel
+    ) -> DbModel:
         """Public api to update a model by primary key, returns the updated instance."""
         instance = self.get(model, instance_id)
         instance.update(data)
         self.session.add(instance)
         return instance
 
-    def delete(self, model: SQLModelType, instance_id: int | str) -> None:
+    def delete(self, model: type[DbModel], instance_id: int | str) -> None:
         """Public api to delete an instance by id."""
         instance = self.session.get(model, instance_id)
         self.session.delete(instance)
 
-    def get(self, model: SQLModelType, instance_id: int | str) -> BaseSQLModel:
+    def get(self, model: type[DbModel], instance_id: int | str) -> DbModel:
         """Public api to get a model instance by primary key."""
         instance = self.session.get(model, instance_id)
         if not instance:
@@ -58,7 +58,7 @@ class DbInterface:
 
     def search(
         self, filters: QueryModelBase, *args, **kwargs
-    ) -> tuple[Sequence[BaseSQLModel], int]:
+    ) -> tuple[Sequence[DbModel], int]:
         """Public api to perform a select using a QueryModel."""
         if filters.has_custom_filters:
             try:
@@ -88,7 +88,7 @@ class DbInterface:
         return query
 
     @staticmethod
-    def count_query(query: Query, model: SQLModelType) -> Query:
+    def count_query(query: Query, model: type[DbModel]) -> Query:
         """Returns the count(*) SA query with the same joins/where of the original"""
         return (
             query.statement.select_from(model)
@@ -125,7 +125,7 @@ class DbInterface:
             query = query.limit(filters.per_page).offset(filters.offset)
         return query, count_query
 
-    def _search(self, filters: QueryModelBase) -> tuple[Sequence[BaseSQLModel], int]:
+    def _search(self, filters: QueryModelBase) -> tuple[Sequence[DbModel], int]:
         """
         Builds the complete query from a filter, creates a count twin query.
         Executes the query and returns the results, and the count.

@@ -9,21 +9,21 @@ from .utils import classproperty
 DataType = TypeVar("DataType")
 
 
-class AnnotationModel(BaseModel):
+class DbModel(SQLModel):
+    """Wrapper on the base SQLModel class"""
 
     @classproperty
-    def body(cls) -> Type[Annotated]:
+    def primary_key(cls) -> str:
+        """Expose the model's PK"""
+        return inspect(cls).primary_key
+
+    @classproperty
+    def fapi_body(cls) -> Type[Annotated]:
+        """The model's annotation to use in fastapi endpoints signatures."""
         return Annotated[cls, AfterValidator(cls.model_validate)]
 
-
-class BaseSQLModel(SQLModel, AnnotationModel):
-
-    @classproperty
-    def pk_field(cls) -> str:
-        return inspect(cls).primary_key[0].name
-
-    def update(self, data: dict | BaseModel):
-        """Bulk update  the instance data."""
+    def update(self, data: dict | type[BaseModel]):
+        """Bulk update the instance data."""
         if isinstance(data, BaseModel):
             data = data.model_dump(exclude_unset=True)
         for k, v in (data or {}).items():
@@ -32,6 +32,3 @@ class BaseSQLModel(SQLModel, AnnotationModel):
             ):
                 continue
             setattr(self, k, v)
-
-
-SQLModelType = TypeVar("SQLModelType", bound=BaseSQLModel)

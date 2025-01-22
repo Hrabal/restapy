@@ -6,7 +6,7 @@ from fastapi import Response
 from pydantic import BaseModel, Field, RootModel, computed_field
 
 from .filters import QueryModelBase
-from .models import DataType, SQLModelType
+from .models import DataType, DbModel
 
 
 class BaseDataResponse(BaseModel):
@@ -40,7 +40,7 @@ class ResourceResponse(BaseDataResponse, Generic[DataType]):
     data: DataType | ProjectedResponse = None
 
     @staticmethod
-    def build(data: SQLModelType) -> dict:
+    def build(data: type[DbModel]) -> dict:
         return {"data": data}
 
 
@@ -52,7 +52,7 @@ class PaginatedResponse(BaseDataResponse, Generic[DataType]):
 
     @classmethod
     def build(
-        cls, data: list[SQLModelType], filters: QueryModelBase, total: int
+        cls, data: list[type[DbModel]], filters: QueryModelBase, total: int
     ) -> dict:
         return {
             "data": data,
@@ -70,12 +70,22 @@ mimetypes.add_type("application/vnd.ms-excel", "xlsx")
 
 class DownloadResponse(Response):
     def __init__(self, file: BytesIO, filename: str, *args, **kwargs):
+        """
+        Wrapper on the Response object that given a bytestream and a filename
+        enriches the response with a mimetype, the filename header, and the bytes
+        data closing the stream.
+        """
         custom_h = kwargs.pop("headers", None) or {}
+        try:
+            media_type = mimetypes.types_map[f".{filename.split('.')[-1]}"]
+        except KeyError:
+            media_type = "application/octet-stream"
+        file.seek(0)
         super().__init__(
             file.getvalue(),
             *args,
             headers={"Content-Disposition": f'inline; filename="{filename}"'}
             | custom_h,
-            media_type=mimetypes.types_map[f".{filename.split('.')[-1]}"],
+            media_type=media_type,
         )
         file.close()
